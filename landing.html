@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ShareWallet - Smart Family Expense Tracker</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    /*
+      Note: If "Satoshi-Regular.otf" is a local font file, make sure the path
+      'fonts/Satoshi-Regular.otf' is correct relative to your CSS file.
+      If it's not crucial, you might consider using a Google Font alternative.
+    */
+    @font-face {
+      font-family: 'Major Mono Display'; /* Changed to a more descriptive name */
+      src: url("fonts/Satoshi-Regular.otf") format("opentype");
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #2e1a47, #1e0e2f);
+      color: #ffffff;
+      font-family: 'Poppins', sans-serif; /* Using Poppins from Google Fonts */
+      overflow-x: hidden;
+    }
+
+    /* Subtle white border lines - adjusted for better placement and responsiveness */
+    body::before, body::after {
+      content: "";
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: rgba(255, 255, 255, 0.1);
+      z-index: 999;
+    }
+
+    body::before {
+      left: 15px; /* Reduced offset for a subtler effect */
+    }
+
+    body::after {
+      right: 15px; /* Reduced offset for a subtler effect */
+    }
+
+    header {
+      padding: 25px 30px; /* Adjusted padding for better consistency */
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1200px; /* Max width for better content control */
+      margin: 0 auto; /* Center the header */
+    }
+
+    header h1 {
+      font-family: 'Major Mono Display', monospace; /* Using the custom font */
+      font-size: 28px;
+      margin: 0;
+      line-height: 1.2;
+      letter-spacing: 2px; /* Added some letter spacing for style */
+    }
+
+    header h1 span {
+      display: inline-block;
+    }
+
+    /* Adjusting button styles for consistency */
+    .btn {
+      border-radius: 30px;
+      padding: 10px 28px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+
+    .btn-outline-light {
+      border-color: rgba(255, 255, 255, 0.5);
+      color: #ffffff;
+    }
+
+    .btn-outline-light:hover {
+      background-color: #00bcd4;
+      border-color: #00bcd4;
+      color: #ffffff;
+    }
+
+    .btn-primary {
+      background-color: #00bcd4; /* A vibrant blue for primary actions */
+      border-color: #00bcd4;
+    }
+
+    .btn-primary:hover {
+      background-color: #009ebf;
+      border-color: #009ebf;
+    }
+
+    .btn-info {
+      background-color: #28a745; /* A green for the "Explore" button */
+      border-color: #28a745;
+    }
+
+    .btn-info:hover {
+      background-color: #218838;
+      border-color: #218838;
+    }
+
+    .hero {
+      padding: 80px 30px; /* Increased top/bottom padding for more vertical space */
+      text-align: center; /* Center content by default */
+    }
+
+    .hero .container-fluid {
+      max-width: 1200px; /* Max width for consistent content */
+    }
+
+    .hero .row {
+      align-items: center;
+      justify-content: center; /* Center the row content */
+    }
+
+    .hero h1 {
+      font-size: 2.8rem; /* Larger font for impact */
+      margin-bottom: 20px;
+      line-height: 1.2;
+      font-weight: 700; /* Make it bolder */
+    }
+
+    .hero h1 strong {
+      color: #00bcd4; /* Highlight the key phrase */
+    }
+
+    .hero p {
+      font-size: 1.1rem; /* Slightly larger text */
+      color: #ccc;
+      margin-bottom: 35px; /* More space before button */
+      max-width: 600px; /* Limit paragraph width for readability */
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .hero img {
+      max-width: 350px; /* Increased image size */
+      width: 100%;
+      height: auto;
+      margin-top: 40px; /* Space above image on smaller screens */
+      animation: float 3s ease-in-out infinite; /* Subtle floating animation */
+    }
+
+    @keyframes float {
+      0% { transform: translateY(0px); }
+      50% { transform: translateY(-15px); }
+      100% { transform: translateY(0px); }
+    }
+
+    .features {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 30px;
+      padding: 80px 30px; /* Consistent padding */
+      max-width: 1200px; /* Limit width */
+      margin: 0 auto; /* Center the feature cards */
+    }
+
+    .feature-card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 15px;
+      padding: 30px;
+      width: 100%; /* Full width on small screens */
+      max-width: 320px; /* Max width for individual cards */
+      text-align: center;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2); /* Subtle shadow */
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-5px); /* Lift on hover */
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .feature-card h3 {
+      color: #00bcd4;
+      margin-bottom: 15px;
+      font-size: 1.4rem;
+      font-weight: 600;
+    }
+
+    .feature-card p {
+      color: #ddd;
+      font-size: 1rem;
+      line-height: 1.6;
+    }
+
+    footer {
+      position: relative;
+      padding: 80px 20px; /* More padding for footer */
+      text-align: center;
+      overflow: hidden; /* Hide overflow for the brand text */
+    }
+
+    .footer-brand {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 6rem; /* Much larger for a background effect */
+      font-weight: bold;
+      color: rgba(255, 255, 255, 0.03); /* More subtle color */
+      pointer-events: none;
+      white-space: nowrap;
+      z-index: 1; /* Ensure it's behind social icons */
+      font-family: 'Major Mono Display', monospace; /* Apply custom font */
+    }
+
+    .social-icons {
+      position: relative;
+      z-index: 2; /* Ensure social icons are on top */
+      margin-top: 20px; /* Space between brand text and icons */
+    }
+
+    .social-icons a {
+      color: #ffffff;
+      margin: 0 15px; /* Increased margin for spacing */
+      font-size: 1.5rem; /* Larger icons */
+      transition: color 0.3s ease, transform 0.3s ease;
+      display: inline-block; /* Allows transform */
+    }
+
+    .social-icons a:hover {
+      color: #00bcd4;
+      transform: translateY(-3px); /* Lift on hover */
+    }
+
+    /* Responsive Adjustments */
+    @media (min-width: 768px) {
+      .hero .col-md-6.text-center.text-md-start {
+        text-align: left !important; /* Align text left on medium+ screens */
+      }
+      .hero img {
+        margin-top: 0; /* No top margin on larger screens */
+      }
+    }
+
+    @media (max-width: 767px) {
+      header {
+        flex-direction: column; /* Stack logo and buttons on small screens */
+        padding: 20px;
+      }
+      header h1 {
+        margin-bottom: 15px;
+      }
+      .hero {
+        padding: 60px 20px;
+      }
+      .hero h1 {
+        font-size: 2.2rem;
+      }
+      .hero p {
+        font-size: 0.95rem;
+      }
+      .features {
+        padding: 60px 20px;
+      }
+      .feature-card {
+        padding: 25px;
+      }
+      .footer-brand {
+        font-size: 3rem; /* Smaller on small screens */
+      }
+      .social-icons a {
+        font-size: 1.3rem;
+        margin: 0 8px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      header h1 {
+        font-size: 24px;
+      }
+      .hero h1 {
+        font-size: 1.8rem;
+      }
+      .hero img {
+        max-width: 200px;
+      }
+      .feature-card {
+        max-width: 280px; /* Slightly smaller cards on very small screens */
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>
+      <span style="color:#fff">S</span><span style="color:#ccc">HARE</span><br>
+      <span style="color:#fff">W</span><span style="color:#ccc">ALLET</span>
+    </h1>
+    <div>
+      <a href="register.php" class="btn btn-outline-light me-2">Register</a>
+      <a href="login.php" class="btn btn-primary">Log In</a>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="container-fluid">
+      <div class="row justify-content-between align-items-center">
+        <div class="col-md-6 text-center text-md-start mb-4 mb-md-0">
+          <h1 class="fw-light">The Fastest Way to<br><strong>Do Your Expenses</strong></h1>
+          <p>Your Money. Your People. One Wallet.</p>
+          <a href="login.php" class="btn btn-info">Explore the Future</a>
+        </div>
+        <div class="col-md-6 text-center">
+          <img src="images/wallet.png" alt="Wallet Logo">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="features">
+    <div class="feature-card">
+      <h3>Track As You Spend</h3>
+      <p>No more waiting. Every expense and every saving is right at your fingertips instantly.</p>
+    </div>
+    <div class="feature-card">
+      <h3>Share Expenses, Share Control</h3>
+      <p>Collaborate, track, and manage family finances together because financial transparency builds trust.</p>
+    </div>
+    <div class="feature-card">
+      <h3>Pretty. Practical. Powerful.</h3>
+      <p>Designed to be effortless, with a clean interface that makes managing money a joy not a chore.</p>
+    </div>
+  </section>
+
+  <footer>
+    <div class="footer-brand">SHARE WALLET</div>
+    <div class="social-icons">
+      <a href="#"><i class="fab fa-facebook-f"></i></a>
+      <a href="#"><i class="fab fa-twitter"></i></a>
+      <a href="#"><i class="fab fa-instagram"></i></a>
+      <a href="#"><i class="fab fa-linkedin-in"></i></a>
+    </div>
+  </footer>
+
+</body>
+</html>
