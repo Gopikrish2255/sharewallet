@@ -1,8 +1,6 @@
 <?php
 // Ensure this file is not accessed directly
-if (!defined('INCLUDED')) {
-    die('Direct access not permitted');
-}
+
 ?>
 <div class="header">  
     <div class="header__logo">

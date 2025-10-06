@@ -1,5 +1,7 @@
 <?php
 session_start();
+define('ACCESS_ALLOWED', true);
+
 require_once 'includes/database.php';
 require_once 'includes/functions.php';
 
@@ -24,7 +26,7 @@ $stmt->execute();
 $groups = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
 
-// Handle create group
+// Create group
 if (isset($_POST['create_group'])) {
     $groupName = trim($_POST['group_name']);
     if ($groupName === '') {
@@ -47,7 +49,7 @@ if (isset($_POST['create_group'])) {
     }
 }
 
-// Determine if current user is admin of selected group
+// Check admin status
 $isAdmin = false;
 if ($selectedGroupId) {
     $stmt = $conn->prepare("SELECT admin_user_id FROM family_groups WHERE id = ?");
@@ -60,16 +62,10 @@ if ($selectedGroupId) {
     $stmt->close();
 }
 
-// Handle delete group (admin only)
+// Delete group
 if (isset($_POST['delete_group']) && $isAdmin && $selectedGroupId) {
-    $stmt = $conn->prepare("DELETE FROM family_members WHERE group_id = ?");
-    $stmt->bind_param("i", $selectedGroupId);
-    $stmt->execute();
-    $stmt->close();
-    $stmt = $conn->prepare("DELETE FROM family_groups WHERE id = ?");
-    $stmt->bind_param("i", $selectedGroupId);
-    $stmt->execute();
-    $stmt->close();
+    $conn->prepare("DELETE FROM family_members WHERE group_id = ?")->bind_param("i", $selectedGroupId)->execute();
+    $conn->prepare("DELETE FROM family_groups WHERE id = ?")->bind_param("i", $selectedGroupId)->execute();
     $_SESSION['flash_message'] = "Group deleted successfully.";
     header("Location: family_groups.php");
     exit;
@@ -115,7 +111,7 @@ if (isset($_GET['search']) && $selectedGroupId) {
     $stmt->close();
 }
 
-// Get selected group details
+// Group details
 $groupName = null;
 $members = [];
 if ($selectedGroupId) {
@@ -140,93 +136,195 @@ if ($selectedGroupId) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Family Groups</title>
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
-<style>
-    body { font-family: 'Poppins', sans-serif; background: #f5f5f5; margin: 0; padding: 0; }
-    .container { max-width: 1000px; margin: 2rem auto; padding: 2rem; background: rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(10px); border-radius: 20px; box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37); }
-    h1, h2, h3 { color: #6c5ce7; text-align: center; }
-    .flash-message { background: #6c5ce7; color: white; padding: 1rem; border-radius: 10px; margin-bottom: 1rem; text-align: center; }
-    form { display: flex; justify-content: center; margin-bottom: 1.5rem; }
-    input[type=text] { padding: 0.5rem 1rem; border-radius: 25px 0 0 25px; border: none; flex: 1; }
-    button { padding: 0.5rem 1rem; border: none; border-radius: 0 25px 25px 0; background: #6c5ce7; color: white; cursor: pointer; }
-    .card-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1.5rem; }
-    .user-card { background: rgba(255, 255, 255, 0.7); border-radius: 15px; padding: 1.5rem; text-align: center; box-shadow: 0 8px 32px rgba(31, 38, 135, 0.2); }
-    .user-card button { background: #e67e22; border: none; padding: 0.4rem 1rem; border-radius: 8px; color: white; cursor: pointer; }
-    .back-btn { display: inline-block; padding: 0.5rem 1rem; background: #3498db; color: white; border-radius: 8px; text-decoration: none; margin-bottom: 1rem; }
-</style>
+  <meta charset="UTF-8">
+  <title>Family Groups</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
+    :root {
+      --primary: #6c5ce7;
+      --secondary: #a29bfe;
+      --accent: #00cec9;
+      --light: #f5f5f5;
+      --card-bg: #fff;
+      --text: #2d3436;
+      --shadow: rgba(108, 92, 231, 0.2);
+    }
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: var(--light);
+      margin: 0;
+      padding: 0;
+      color: var(--text);
+    }
+    .main-content {
+      margin: 2rem auto;
+      padding: 2rem;
+      max-width: 1100px;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 8px 30px var(--shadow);
+    }
+    h1, h2, h3 {
+      text-align: center;
+      color: var(--primary);
+    }
+    .flash-message {
+      background: var(--primary);
+      color: white;
+      padding: 1rem;
+      text-align: center;
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+    }
+    form {
+      display: flex;
+      justify-content: center;
+      margin: 1rem 0;
+      gap: 10px;
+    }
+    input[type=text] {
+      padding: 0.6rem 1rem;
+      border: 2px solid var(--primary);
+      border-radius: 10px;
+      flex: 1;
+      max-width: 300px;
+    }
+    button {
+      padding: 0.6rem 1.2rem;
+      background: var(--primary);
+      border: none;
+      border-radius: 10px;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+      text-align: center;
+    }
+    ul li {
+      margin: 0.5rem 0;
+    }
+    ul li a {
+      color: var(--accent);
+      font-weight: bold;
+      margin-left: 10px;
+    }
+    .card-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1.5rem;
+      margin-top: 1rem;
+    }
+    .user-card {
+      background: var(--card-bg);
+      border-radius: 15px;
+      padding: 1.5rem;
+      text-align: center;
+      box-shadow: 0 4px 15px var(--shadow);
+    }
+    .user-card h4 {
+      margin-bottom: 0.5rem;
+    }
+    .user-card button {
+      background: #e67e22;
+    }
+    .user-card form {
+      margin-top: 0.5rem;
+    }
+    .add-button {
+      background: #2ecc71 !important;
+    }
+    .delete-button {
+      background: #e74c3c !important;
+    }
+    .back-btn {
+      display: inline-block;
+      background: #3498db;
+      color: white;
+      padding: 0.5rem 1rem;
+      text-decoration: none;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+    }
+  </style>
 </head>
 <body>
-<div class="container">
-    <a href="dashboard.php" class="back-btn"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
-    <h1>Family Group Management</h1>
+<?php include 'includes/navbar.php'; ?>
+<div class="main-content">
+  <a href="dashboard.php" class="back-btn"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+  <h1>Family Group Management</h1>
 
-    <?php if (isset($_SESSION['flash_message'])): ?>
-        <div class="flash-message"><?= htmlspecialchars($_SESSION['flash_message']); unset($_SESSION['flash_message']); ?></div>
+  <?php if (isset($_SESSION['flash_message'])): ?>
+      <div class="flash-message"><?= htmlspecialchars($_SESSION['flash_message']); unset($_SESSION['flash_message']); ?></div>
+  <?php endif; ?>
+
+ <h2>Your Groups</h2>
+<div class="card-list">
+    <?php foreach ($groups as $g): ?>
+        <div class="user-card">
+            <h4><?= htmlspecialchars($g['group_name']); ?></h4>
+            <a href="?group_id=<?= $g['id']; ?>" style="display:inline-block; margin-top:10px; color:#6c5ce7; font-weight:bold; text-decoration:none;">
+                Manage <i class="fas fa-cog"></i>
+            </a>
+        </div>
+    <?php endforeach; ?>
+</div>
+
+
+  <h2>Create New Group</h2>
+  <form method="POST">
+    <input type="text" name="group_name" placeholder="Enter group name">
+    <button type="submit" name="create_group">Create</button>
+  </form>
+
+  <?php if ($selectedGroupId): ?>
+    <h2>Group: <?= htmlspecialchars($groupName); ?></h2>
+
+    <?php if ($isAdmin): ?>
+      <form method="POST" onsubmit="return confirm('Are you sure you want to delete this group?');">
+        <button type="submit" name="delete_group" class="delete-button">Delete Group</button>
+      </form>
     <?php endif; ?>
 
-    <h2>Your Groups</h2>
-    <ul>
-        <?php foreach ($groups as $g): ?>
-            <li>
-                <?= htmlspecialchars($g['group_name']); ?> 
-                <a href="?group_id=<?= $g['id']; ?>">Manage</a>
-            </li>
-        <?php endforeach; ?>
-    </ul>
+    <h3>Group Members</h3>
+    <div class="card-list">
+      <?php foreach ($members as $m): ?>
+        <div class="user-card">
+          <h4><?= htmlspecialchars($m['FirstName'] . ' ' . $m['LastName']); ?></h4>
+          <?php if ($m['ID'] != $userId): ?>
+            <form method="POST">
+              <input type="hidden" name="remove_member" value="<?= $m['ID']; ?>">
+              <button type="submit">Remove</button>
+            </form>
+          <?php endif; ?>
+        </div>
+      <?php endforeach; ?>
+    </div>
 
-    <h2>Create a New Group</h2>
-    <form method="POST">
-        <input type="text" name="group_name" placeholder="Enter Group Name">
-        <button type="submit" name="create_group">Create Group</button>
+    <h3>Add Members</h3>
+    <form method="GET">
+      <input type="hidden" name="group_id" value="<?= $selectedGroupId; ?>">
+      <input type="text" name="search" placeholder="Search users">
+      <button type="submit">Search</button>
     </form>
 
-    <?php if ($selectedGroupId): ?>
-        <h2>Group: <?= htmlspecialchars($groupName); ?></h2>
-
-        <?php if ($isAdmin): ?>
-            <form method="POST" onsubmit="return confirm('Delete this group? This cannot be undone.');" style="justify-content:center;">
-                <button type="submit" name="delete_group" style="background:#e74c3c; border-radius:8px;">Delete Group</button>
+    <?php if (!empty($searchResults)): ?>
+      <div class="card-list">
+        <?php foreach ($searchResults as $user): ?>
+          <div class="user-card">
+            <h4><?= htmlspecialchars($user['FirstName'] . ' ' . $user['LastName']); ?></h4>
+            <form method="POST">
+              <input type="hidden" name="add_member" value="<?= $user['ID']; ?>">
+              <button type="submit" class="add-button">Add</button>
             </form>
-        <?php endif; ?>
-
-        <h3>Members</h3>
-        <div class="card-list">
-            <?php foreach ($members as $m): ?>
-                <div class="user-card">
-                    <h4><?= htmlspecialchars($m['FirstName'] . ' ' . $m['LastName']); ?></h4>
-                    <?php if ($m['ID'] != $userId): ?>
-                        <form method="POST">
-                            <input type="hidden" name="remove_member" value="<?= $m['ID']; ?>">
-                            <button type="submit">Remove</button>
-                        </form>
-                    <?php endif; ?>
-                </div>
-            <?php endforeach; ?>
-        </div>
-
-        <h3>Add Members</h3>
-        <form method="GET">
-            <input type="hidden" name="group_id" value="<?= $selectedGroupId; ?>">
-            <input type="text" name="search" placeholder="Search users">
-            <button type="submit">Search</button>
-        </form>
-        <?php if (!empty($searchResults)): ?>
-            <div class="card-list">
-                <?php foreach ($searchResults as $user): ?>
-                    <div class="user-card">
-                        <h4><?= htmlspecialchars($user['FirstName'] . ' ' . $user['LastName']); ?></h4>
-                        <form method="POST">
-                            <input type="hidden" name="add_member" value="<?= $user['ID']; ?>">
-                            <button type="submit" style="background:#2ecc71;">Add</button>
-                        </form>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-        <?php endif; ?>
+          </div>
+        <?php endforeach; ?>
+      </div>
     <?php endif; ?>
+  <?php endif; ?>
 </div>
 </body>
 </html>

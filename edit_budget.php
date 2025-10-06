@@ -62,12 +62,7 @@ $expensesByCategory = getCategoryExpenses($userId);
    - Computes this month’s total spent from `tblexpense`
    - Derives Remaining & Usage%
 ------------------------------------------------------------------------ */
-$budgetSummary = [
-    'MonthlyBudget'    => 0.0,
-    'TotalExpense'     => 0.0,
-    'RemainingBudget'  => 0.0,
-    'BudgetPercentage' => 0.0,
-];
+
 
 $currentMonth = (int)date('n');
 $currentYear  = (int)date('Y');
@@ -360,13 +355,7 @@ if (isset($conn) && $conn instanceof mysqli) {
             <h2>Current Month Overview</h2>
             <div class="summary-section">
                 <!-- ✅ REPLACED: Old summary (using $currentMonthSummary) with canonical summary card -->
-                <div class="summary-box">
-                    <h3>Budget Summary</h3>
-                    <p><strong>Monthly Budget:</strong> ₹<?php echo number_format($budgetSummary['MonthlyBudget'], 2); ?></p>
-                    <p><strong>Total Spent:</strong> ₹<?php echo number_format($budgetSummary['TotalExpense'], 2); ?></p>
-                    <p><strong>Remaining:</strong> ₹<?php echo number_format($budgetSummary['RemainingBudget'], 2); ?></p>
-                    <p><strong>Budget Usage:</strong> <?php echo number_format($budgetSummary['BudgetPercentage'], 2); ?>%</p>
-                </div>
+                
                 <div class="summary-box">
                     <h3>Expenses by Category</h3>
                     <ul>

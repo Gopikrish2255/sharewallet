@@ -67,6 +67,16 @@ if ($selectedGroupId) {
     $stmt->close();
 }
 
+// Member selection
+$selectedMemberId = null;
+if (isset($_GET['member_id'])) {
+    $selectedMemberId = (int)$_GET['member_id'];
+    $allowedMemberIds = array_column($members, 'ID');
+    if (!in_array($selectedMemberId, $allowedMemberIds, true)) {
+        $selectedMemberId = null; // fallback if invalid
+    }
+}
+
 // Stats variables
 $monthlyLabels = $monthlyValues = [];
 $categoryLabels = $categoryValues = [];
@@ -112,16 +122,31 @@ if ($selectedGroupId) {
     }
 
     // --- Category chart ---
-    $stmt = $conn->prepare("
-        SELECT COALESCE(c.CategoryName, 'Uncategorized') AS name, IFNULL(SUM(e.ExpenseCost),0) AS total
-        FROM tblexpense e
-        LEFT JOIN tblcategory c ON c.ID = e.CategoryID
-        WHERE (e.GroupID = ? OR e.GroupID IS NULL)
-        GROUP BY name
-        ORDER BY total DESC
-        LIMIT 20
-    ");
-    $stmt->bind_param("i", $selectedGroupId);
+    if ($selectedMemberId) {
+        // Category-wise expenses for specific member
+        $stmt = $conn->prepare("
+            SELECT COALESCE(c.CategoryName, 'Uncategorized') AS name, IFNULL(SUM(e.ExpenseCost),0) AS total
+            FROM tblexpense e
+            LEFT JOIN tblcategory c ON c.ID = e.CategoryID
+            WHERE e.UserId = ? AND (e.GroupID = ? OR e.GroupID IS NULL)
+            GROUP BY name
+            ORDER BY total DESC
+            LIMIT 20
+        ");
+        $stmt->bind_param("ii", $selectedMemberId, $selectedGroupId);
+    } else {
+        // Group-wide category expenses (existing)
+        $stmt = $conn->prepare("
+            SELECT COALESCE(c.CategoryName, 'Uncategorized') AS name, IFNULL(SUM(e.ExpenseCost),0) AS total
+            FROM tblexpense e
+            LEFT JOIN tblcategory c ON c.ID = e.CategoryID
+            WHERE (e.GroupID = ? OR e.GroupID IS NULL)
+            GROUP BY name
+            ORDER BY total DESC
+            LIMIT 20
+        ");
+        $stmt->bind_param("i", $selectedGroupId);
+    }
     $stmt->execute();
     $res = $stmt->get_result();
     while ($r = $res->fetch_assoc()) {
@@ -215,93 +240,247 @@ if ($selectedGroupId) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="UTF-8" />
 <title>Group Statistics</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-body { font-family: Arial, sans-serif; margin: 20px; }
-.chart-container { width: 500px; height: 300px; display: inline-block; margin: 20px; }
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        margin: 20px;
+        background: #f4f6f8;
+        color: #333;
+    }
+    a {
+        color: #0984e3;
+        text-decoration: none;
+    }
+    a:hover {
+        text-decoration: underline;
+    }
+    .btn-back {
+        display: inline-block;
+        padding: 10px 20px;
+        background: #0984e3;
+        color: #fff;
+        border-radius: 5px;
+        margin-bottom: 20px;
+    }
+    h1 {
+        margin-bottom: 20px;
+    }
+    form {
+        margin-bottom: 20px;
+    }
+    select {
+        padding: 8px 12px;
+        font-size: 16px;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+        min-width: 220px;
+    }
+    .card {
+        background: #fff;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 4px 10px rgb(0 0 0 / 0.1);
+        margin-bottom: 20px;
+        max-width: 600px;
+    }
+    .chart-container {
+        width: 500px;
+        height: 320px;
+        display: inline-block;
+        margin: 20px 15px;
+        background: #fff;
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgb(0 0 0 / 0.1);
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        background: #fff;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 4px 12px rgb(0 0 0 / 0.05);
+    }
+    thead {
+        background: #6c5ce7;
+        color: #fff;
+    }
+    th, td {
+        padding: 12px 15px;
+        text-align: right;
+        border-bottom: 1px solid #eee;
+        font-size: 15px;
+    }
+    th:first-child, td:first-child {
+        text-align: left;
+    }
+    tbody tr:hover {
+        background: #f1f3ff;
+    }
+    .members {
+        max-width: 900px;
+        margin-top: 30px;
+    }
 </style>
 </head>
 <body>
-    <!-- Back to Dashboard Button -->
-<div style="margin-bottom:20px;">
-    <a href="dashboard.php" 
-       style="display:inline-block; padding:10px 20px; background:#0984e3; color:#fff; text-decoration:none; border-radius:5px;">
-       ← Back to Dashboard
-    </a>
-</div>
+
+<a href="dashboard.php" class="btn-back">← Back to Dashboard</a>
+
 <h1>Group Statistics</h1>
 
+<div class="card">
+    <form method="get" style="margin-bottom: 10px;">
+        <label for="groupSelect">Select Group: </label>
+        <select id="groupSelect" name="group_id" onchange="this.form.submit()">
+            <?php foreach ($groups as $g): ?>
+                <option value="<?= $g['group_id'] ?>" <?= $g['group_id'] == $selectedGroupId ? 'selected' : '' ?>>
+                    <?= htmlspecialchars($g['group_name']) ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+    </form>
 
-<form method="get" style="margin-bottom:20px;">
-    <label>Select Group: </label>
-    <select name="group_id" onchange="this.form.submit()">
-        <?php foreach ($groups as $g): ?>
-            <option value="<?= $g['group_id'] ?>" <?= $g['group_id'] == $selectedGroupId ? 'selected' : '' ?>>
-                <?= htmlspecialchars($g['group_name']) ?>
-            </option>
-        <?php endforeach; ?>
-    </select>
-</form>
-
-
-
+    <?php if (!empty($members)): ?>
+        <form method="get" style="margin-top: 15px;">
+            <input type="hidden" name="group_id" value="<?= htmlspecialchars($selectedGroupId) ?>">
+            <label for="memberSelect">Select Member: </label>
+            <select id="memberSelect" name="member_id" onchange="this.form.submit()">
+                <option value="">-- All Members --</option>
+                <?php foreach ($members as $m): ?>
+                    <option value="<?= $m['ID'] ?>" <?= ($selectedMemberId === $m['ID']) ? 'selected' : '' ?>>
+                        <?= htmlspecialchars(trim($m['FirstName'] . ' ' . $m['LastName'])) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </form>
+    <?php endif; ?>
+</div>
 
 <?php if ($selectedGroupId): ?>
-<div class="chart-container"><canvas id="monthlyChart"></canvas></div>
-<div class="chart-container"><canvas id="categoryChart"></canvas></div>
-<div class="chart-container"><canvas id="last7Chart"></canvas></div>
-<?php if (!empty($memberStats)): ?>
-<div class="members" style="margin-top: 30px;">
-    <h3>Member-Wise Statistics (Current Month)</h3>
-    <div style="overflow-x:auto;">
-        <table style="width:100%; border-collapse:collapse; background:#fff; border-radius:8px; overflow:hidden;">
-            <thead style="background:#6c5ce7; color:#fff;">
-                <tr>
-                    <th style="padding:10px; text-align:left;">Member</th>
-                    <th style="padding:10px; text-align:right;">Monthly Budget (₹)</th>
-                    <th style="padding:10px; text-align:right;">This Month's Expense (₹)</th>
-                    <th style="padding:10px; text-align:right;">Remaining Budget (₹)</th>
-                    <th style="padding:10px; text-align:right;">% Spent</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($memberStats as $ms): 
-                    $remaining = $ms['monthlyBudget'] - $ms['thisMonthTotal'];
-                    $percSpent = $ms['monthlyBudget'] > 0 ? ($ms['thisMonthTotal'] / $ms['monthlyBudget'] * 100) : 0;
-                ?>
-                <tr style="border-bottom:1px solid #f0f0f0;">
-                    <td style="padding:10px;"><?= safeOutput($ms['name']) ?></td>
-                    <td style="padding:10px; text-align:right;"><?= number_format($ms['monthlyBudget'],2) ?></td>
-                    <td style="padding:10px; text-align:right;"><?= number_format($ms['thisMonthTotal'],2) ?></td>
-                    <td style="padding:10px; text-align:right;"><?= number_format($remaining,2) ?></td>
-                    <td style="padding:10px; text-align:right;"><?= number_format($percSpent,2) ?>%</td>
-                </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
+
+    <div class="chart-container">
+        <canvas id="monthlyChart"></canvas>
     </div>
-</div>
+    <div class="chart-container">
+        <canvas id="categoryChart"></canvas>
+    </div>
+    <div class="chart-container">
+        <canvas id="last7Chart"></canvas>
+    </div>
+
+    <?php if (!$selectedMemberId && !empty($memberStats)): ?>
+    <div class="members">
+        <h3>Member-Wise Statistics (Current Month)</h3>
+        <div style="overflow-x:auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Member</th>
+                        <th>Monthly Budget (₹)</th>
+                        <th>This Month's Expense (₹)</th>
+                        <th>Remaining Budget (₹)</th>
+                        <th>% Spent</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($memberStats as $ms):
+                        $remaining = $ms['monthlyBudget'] - $ms['thisMonthTotal'];
+                        $percSpent = $ms['monthlyBudget'] > 0 ? ($ms['thisMonthTotal'] / $ms['monthlyBudget']) * 100 : 0;
+                    ?>
+                    <tr>
+                        <td><?= htmlspecialchars($ms['name']) ?></td>
+                        <td><?= number_format($ms['monthlyBudget'], 2) ?></td>
+                        <td><?= number_format($ms['thisMonthTotal'], 2) ?></td>
+                        <td><?= number_format($remaining, 2) ?></td>
+                        <td><?= number_format($percSpent, 1) ?>%</td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <?php endif; ?>
+
+<?php else: ?>
+    <p>Please select a group to view statistics.</p>
 <?php endif; ?>
 
 <script>
-new Chart(document.getElementById('monthlyChart'), {
+const monthlyLabels = <?= json_encode($monthlyLabels) ?>;
+const monthlyData = <?= json_encode($monthlyValues) ?>;
+
+const categoryLabels = <?= json_encode($categoryLabels) ?>;
+const categoryData = <?= json_encode($categoryValues) ?>;
+
+const last7Labels = <?= json_encode($last7Labels) ?>;
+const last7Data = <?= json_encode($last7Values) ?>;
+
+const categoryChartLabel = <?= json_encode(
+    $selectedMemberId
+    ? "Category Expense (Member)"
+    : "Category Expense (Group)"
+) ?>;
+
+const ctxMonthly = document.getElementById('monthlyChart').getContext('2d');
+const monthlyChart = new Chart(ctxMonthly, {
+    type: 'bar',
+    data: {
+        labels: monthlyLabels,
+        datasets: [{
+            label: 'Monthly Expense (₹)',
+            data: monthlyData,
+            backgroundColor: '#0984e3'
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { labels: { font: { size: 14 } } } },
+        scales: { y: { beginAtZero: true } }
+    }
+});
+
+const ctxCategory = document.getElementById('categoryChart').getContext('2d');
+const categoryChart = new Chart(ctxCategory, {
+    type: 'bar',
+    data: {
+        labels: categoryLabels,
+        datasets: [{
+            label: categoryChartLabel,
+            data: categoryData,
+            backgroundColor: '#00b894'
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { labels: { font: { size: 14 } } } },
+        scales: { y: { beginAtZero: true } }
+    }
+});
+
+const ctxLast7 = document.getElementById('last7Chart').getContext('2d');
+const last7Chart = new Chart(ctxLast7, {
     type: 'line',
-    data: { labels: <?= json_encode($monthlyLabels) ?>,
-            datasets: [{ label: 'Monthly Expense', data: <?= json_encode($monthlyValues) ?>, borderColor: 'blue', fill: false }] }
-});
-new Chart(document.getElementById('categoryChart'), {
-    type: 'bar',
-    data: { labels: <?= json_encode($categoryLabels) ?>,
-            datasets: [{ label: 'Category Expense', data: <?= json_encode($categoryValues) ?>, backgroundColor: 'green' }] }
-});
-new Chart(document.getElementById('last7Chart'), {
-    type: 'bar',
-    data: { labels: <?= json_encode($last7Labels) ?>,
-            datasets: [{ label: 'Last 7 Days', data: <?= json_encode($last7Values) ?>, backgroundColor: 'orange' }] }
+    data: {
+        labels: last7Labels,
+        datasets: [{
+            label: 'Last 7 Days Expense (₹)',
+            data: last7Data,
+            fill: false,
+            borderColor: '#d63031',
+            tension: 0.1
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { labels: { font: { size: 14 } } } },
+        scales: { y: { beginAtZero: true } }
+    }
 });
 </script>
-<?php endif; ?>
+
 </body>
 </html>
