@@ -1,4 +1,5 @@
 <?php
+
 session_start();
 define('INCLUDED', true);
 error_reporting(E_ALL);
@@ -307,7 +308,6 @@ if ($categories === false) {
                         <tr>
                             <td><?php echo htmlspecialchars($category['CategoryName']); ?></td>
                             <td>
-                                <a href="edit_category.php?id=<?php echo $category['ID']; ?>" class="btn-edit"></a>
                                 <div style="display: flex; gap: 10px;">
                                     <a href="edit_category.php?id=<?php echo $category['ID']; ?>" 
                                        style="background: rgba(108, 92, 231, 0.3);
@@ -332,7 +332,7 @@ if ($categories === false) {
                                                        backdrop-filter: blur(5px);
                                                        transition: all 0.3s ease;">Delete</button>
                                     </form>
-                                </div></form>
+                                </div>
                             </td>
                         </tr>
                     <?php endforeach; ?>

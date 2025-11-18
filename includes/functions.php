@@ -86,67 +86,49 @@ function editCategory($categoryId, $newCategoryName) {
 
 
 function deleteCategory($categoryId, $userId) {
+    
     global $conn;
 
     try {
-        // Validate inputs
-        if (!is_numeric($categoryId) || !is_numeric($userId) || $userId <= 0 || $categoryId <= 0) {
-            throw new Exception("Invalid category ID or user ID");
+        // Validate values
+        if (!is_numeric($categoryId) || !is_numeric($userId)) {
+            return false;
         }
 
-        // Start transaction to ensure data consistency
-        $conn->begin_transaction();
-
-        // First, check if the category exists and belongs to the user
+        // 1. Check category belongs to user
         $checkStmt = $conn->prepare("SELECT ID FROM tblcategory WHERE ID = ? AND UserId = ?");
-        if (!$checkStmt) {
-            throw new Exception("Error preparing check statement");
-        }
         $checkStmt->bind_param("ii", $categoryId, $userId);
-        if (!$checkStmt->execute()) {
-            throw new Exception("Error executing check statement");
-        }
+        $checkStmt->execute();
         $result = $checkStmt->get_result();
 
         if ($result->num_rows === 0) {
-            throw new Exception("Category not found or insufficient permissions");
+            return false; // Category not found or user does not own it
         }
 
-        // Check if there are any expenses using this category
-        $expenseCheckStmt = $conn->prepare("SELECT COUNT(*) as count FROM tblexpense WHERE CategoryID = ?");
-        $expenseCheckStmt->bind_param("i", $categoryId);
-        $expenseCheckStmt->execute();
-        $expenseResult = $expenseCheckStmt->get_result();
-        $expenseCount = $expenseResult->fetch_assoc()['count'];
+        // 2. Check if category is used in expenses
+        $expenseCheck = $conn->prepare("SELECT COUNT(*) AS count FROM tblexpense WHERE CategoryID = ?");
+        $expenseCheck->bind_param("i", $categoryId);
+        $expenseCheck->execute();
+        $res = $expenseCheck->get_result()->fetch_assoc();
 
-        if ($expenseCount > 0) {
-            throw new Exception("Cannot delete category: There are expenses linked to this category");
+        if ($res['count'] > 0) {
+            return false; // Category used in expenses
         }
 
-        // Delete the category
+        // 3. Safe delete category
         $deleteStmt = $conn->prepare("DELETE FROM tblcategory WHERE ID = ? AND UserId = ?");
-        if (!$deleteStmt) {
-            throw new Exception("Error preparing delete statement");
-        }
-
         $deleteStmt->bind_param("ii", $categoryId, $userId);
-        if (!$deleteStmt->execute()) {
-            throw new Exception("Error executing delete statement");
-        }
+        $deleteStmt->execute();
 
-        if ($deleteStmt->affected_rows === 0) {
-            throw new Exception("No category was deleted");
-        }
-
-        $conn->commit();
-        return true;
+        return $deleteStmt->affected_rows > 0;
 
     } catch (Exception $e) {
-        $conn->rollback();
-        error_log("Error deleting category: " . $e->getMessage());
+        error_log("Delete Category Error: " . $e->getMessage());
         return false;
     }
 }
+
+
 
 // Function to retrieve user details
 function getUserDetails(int $userId): array {
