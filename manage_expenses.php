@@ -22,7 +22,10 @@
           die("CSRF token validation failed");
       }
   }
-  $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+  if (!isset($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
 
   // Handle adding an expense
   if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_expense'])) {
