@@ -27,6 +27,14 @@
                     <li><a href="budget_analysis.php" class="navbar__link">Analysis</a></li>
                 </ul>
             </li>
+         
+            <li class="navbar__item">
+                <a href="#" class="navbar__link"><i data-feather="heart"></i><span>Wishlist</span></a>
+                <ul class="navbar__submenu">
+                    <li><a href="wishlist.php" class="navbar__link">View Wishlist</a></li>
+                    <li><a href="add_wishlist.php" class="navbar__link">Add Item</a></li>
+                </ul>
+            </li>
             <li class="navbar__item">
     <a href="#" class="navbar__link"><i data-feather="link"></i><span>Family</span></a>
     <ul class="navbar__submenu">
